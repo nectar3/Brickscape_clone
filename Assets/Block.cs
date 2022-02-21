@@ -17,28 +17,21 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
     private int blockSize;
     float limit;
 
-    private Rigidbody rb;
-
     bool isDragging = false;
 
     private GameObject rayPoint_max;
     private GameObject rayPoint_min;
 
+    Vector3 d; // 이동할 델타
 
     private void Start()
     {
-        spaceSize = GameManager.I.spaceSize;
-
         blockSize =
             dir == Direction.x ? Mathf.RoundToInt(transform.localScale.x) :
             dir == Direction.y ? Mathf.RoundToInt(transform.localScale.y) :
             dir == Direction.z ? Mathf.RoundToInt(transform.localScale.z) : 1;
 
-         d = transform.position;
-        //Debug.Log(spaceSize);
-        //Debug.Log(blockSize);
-        limit = (spaceSize - blockSize) / (float)2;
-        //Debug.Log(limit);
+        d = transform.position;
 
         if (dir == Direction.y)
         {
@@ -56,33 +49,35 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
 
     public void OnBeginDrag(PointerEventData eventData)
     {
+        Debug.Log("OnBeginDrag = ");
         isDragging = true;
     }
 
-    // TODO: 드래그 빨리하면 뚫어버리는 문제
-    Vector3 d;
+    // TODO: 드래그 빨리하면 뚫어버려서 delta를 너무 줄이니까 감도가 별로인 문제
     public void OnDrag(PointerEventData eventData)
     {
         if(dir == Direction.y)
         {
             float deltaY = eventData.delta.y;
-            if(deltaY > 5)
-                Debug.Log("쎄게박음 = ");
             deltaY = Mathf.Clamp(deltaY, -2, 2);
             d = Vector3.up * deltaY * dragSpeed * Time.deltaTime;
             if (Physics.Raycast(rayPoint_max.transform.position, Vector3.up, out RaycastHit hit, 1f))
             {
-                if(deltaY > 0 && hit.distance < 0.1f)
+                Debug.Log("hit.distance = " + hit.distance);
+
+                if (deltaY > 0 && hit.distance < 0.1f)
                     d = Vector3.zero;
             }
-            if(Physics.Raycast(rayPoint_min.transform.position, Vector3.down, out RaycastHit hit2, 1f))
+            if(Physics.Raycast(rayPoint_min.transform.position, Vector3.down, out hit, 1f))
             {
                 if (deltaY < 0 && hit.distance < 0.1f)
+                {
                     d = Vector3.zero;
+                    Debug.Log("hit.distance = " + hit.distance);
+                }
             }
         }
         var newPos = transform.position + d;
-        newPos.y = Mathf.Clamp(newPos.y, -limit, limit); // 델타에 제한을 걸어줘야 한번에 넘어서지 않음
         transform.position = newPos;
     }
 

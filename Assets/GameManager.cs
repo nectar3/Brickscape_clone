@@ -6,9 +6,6 @@ public class GameManager : MonoBehaviour
 {
     public Transform cubeSpace;
 
-    [HideInInspector]
-    public float spaceSize;
-
     private Camera _cam;
 
     private static GameManager instance = null;
@@ -18,7 +15,6 @@ public class GameManager : MonoBehaviour
         {
             instance = this;
             DontDestroyOnLoad(this.gameObject);
-            spaceSize = cubeSpace.localScale.x;
 
         }
         else
