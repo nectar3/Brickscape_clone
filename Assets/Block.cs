@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using DG.Tweening;
 
 public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
@@ -10,6 +11,7 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
         x = 0, y, z,
     }
     public Direction dir;
+    private Vector3 dirVec;
 
     public float dragSpeed = 2f;
 
@@ -26,25 +28,25 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
 
     private void Start()
     {
-        blockSize =
-            dir == Direction.x ? Mathf.RoundToInt(transform.localScale.x) :
-            dir == Direction.y ? Mathf.RoundToInt(transform.localScale.y) :
-            dir == Direction.z ? Mathf.RoundToInt(transform.localScale.z) : 1;
+        dirVec = 
+            dir == Direction.x ? Vector3.right :
+            dir == Direction.y ? Vector3.up :
+            dir == Direction.z ? Vector3.forward : Vector3.zero;
 
-        d = transform.position;
+        blockSize = Mathf.RoundToInt(Vector3.Dot(dirVec, transform.localScale));
 
-        if (dir == Direction.y)
-        {
-            var rayPoint = new GameObject("rayPoint_max");
-            rayPoint.transform.SetParent(this.transform);
-            rayPoint.transform.localPosition = new Vector3(0, (blockSize / 2f) / (float)blockSize, 0); // 블럭의 맨 윗부분
-            rayPoint_max = rayPoint;
+        d = Vector3.zero;
 
-            rayPoint = new GameObject("rayPoint_min");
-            rayPoint.transform.SetParent(this.transform);
-            rayPoint.transform.localPosition = new Vector3(0, -(blockSize / 2f) / (float)blockSize, 0);
-            rayPoint_min = rayPoint;
-        }
+        // 블럭 끝부분에 레이캐스트 포인트
+        var rayPoint = new GameObject("rayPoint_max");
+        rayPoint.transform.SetParent(this.transform);
+        rayPoint.transform.localPosition = dirVec /2; // 블럭의 맨 윗부분. (blockSize / 2f) / (float)blockSize 이거 정리하면 항상 1/2 이다
+        rayPoint_max = rayPoint;
+
+        rayPoint = new GameObject("rayPoint_min");
+        rayPoint.transform.SetParent(this.transform);
+        rayPoint.transform.localPosition = -dirVec / 2;
+        rayPoint_min = rayPoint;
     }
 
     public void OnBeginDrag(PointerEventData eventData)
@@ -53,28 +55,66 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
         isDragging = true;
     }
 
+
+    bool isShaking = false;
+    public void ShakeBlock(Vector3 hitPoint, float hitDelta)
+    {
+        if (isShaking)
+            return;
+        Debug.Log("hitPoint = " + hitPoint);
+
+        isShaking = true;
+
+        if (Vector3.Dot( transform.position, dirVec) < Vector3.Dot( hitPoint, dirVec)) // 블럭 방향의 성분만 가져오기
+        {
+            Debug.Log("방향 true");
+            transform.DORotate(dirVec * 20, 1f);
+        }
+        else
+        {
+            Debug.Log("방향 false");
+            transform.DORotate(dirVec * -20, 1f);
+
+        }
+    }
+
+    // TODO: 상대방에게 맞은 hitPoint 에 따라 회전 축 정하기
+    //Vector3 GetRotationAxisByDir()
+    //{
+    //    var delta =
+    //        dir == Direction.x ? -eventData.delta.x :
+    //        dir == Direction.y ? eventData.delta.y :
+    //        dir == Direction.z ? Vector3.right : Vector3.right;
+    //}
+
     // TODO: 드래그 빨리하면 뚫어버려서 delta를 너무 줄이니까 감도가 별로인 문제
     public void OnDrag(PointerEventData eventData)
     {
-        if(dir == Direction.y)
-        {
-            float deltaY = eventData.delta.y;
-            deltaY = Mathf.Clamp(deltaY, -2, 2);
-            d = Vector3.up * deltaY * dragSpeed * Time.deltaTime;
-            if (Physics.Raycast(rayPoint_max.transform.position, Vector3.up, out RaycastHit hit, 1f))
-            {
-                Debug.Log("hit.distance = " + hit.distance);
+        var delta =
+            dir == Direction.x ? -eventData.delta.x :
+            dir == Direction.y ? eventData.delta.y :
+            dir == Direction.z ? eventData.delta.x : 0;
+        var delta_clamped = Mathf.Clamp(delta, -3, 3);
 
-                if (deltaY > 0 && hit.distance < 0.1f)
-                    d = Vector3.zero;
-            }
-            if(Physics.Raycast(rayPoint_min.transform.position, Vector3.down, out hit, 1f))
+        d = dirVec * delta_clamped * dragSpeed * Time.deltaTime;
+        if (Physics.Raycast(rayPoint_max.transform.position, dirVec, out RaycastHit hit, 1f))
+        {
+            if (delta_clamped > 0 && hit.distance < 0.1f)
             {
-                if (deltaY < 0 && hit.distance < 0.1f)
-                {
-                    d = Vector3.zero;
-                    Debug.Log("hit.distance = " + hit.distance);
-                }
+                d = Vector3.zero;
+                var otherBlock = hit.collider.gameObject.GetComponent<Block>();
+                if (otherBlock)
+                    otherBlock.ShakeBlock(hit.point, delta);
+            }
+        }
+        if(Physics.Raycast(rayPoint_min.transform.position, -dirVec, out hit, 1f))
+        {
+            if (delta_clamped < 0 && hit.distance < 0.1f)
+            {
+                d = Vector3.zero;
+                var otherBlock = hit.collider.gameObject.GetComponent<Block>();
+                if (otherBlock)
+                    otherBlock.ShakeBlock(hit.point, delta);
             }
         }
         var newPos = transform.position + d;
