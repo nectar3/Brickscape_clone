@@ -8,6 +8,10 @@ public class GameManager : MonoBehaviour
 
     private Camera _cam;
 
+    public bool isBlockDragging = false;
+
+    public float rotationSpeed = 3f;
+
     private static GameManager instance = null;
     void Awake()
     {
@@ -32,10 +36,20 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        Debug.Log("gm start");
         _cam = Camera.main;
     }
 
+    private void Update()
+    {
+        if(isBlockDragging == false)
+        {
+            if (Input.GetMouseButton(0))
+            {
+                cubeSpace.Rotate(0f, -Input.GetAxis("Mouse X") * rotationSpeed, 0f, Space.World);
+                cubeSpace.Rotate(-Input.GetAxis("Mouse Y") * rotationSpeed, 0f, 0f);
+            }
+        }
 
+    }
 
 }
