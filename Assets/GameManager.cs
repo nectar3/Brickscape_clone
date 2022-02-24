@@ -9,6 +9,7 @@ public class GameManager : MonoBehaviour
     private Camera _cam;
 
     public bool isBlockDragging = false;
+    public bool isStageClear = false;
 
     public float rotationSpeed = 3f;
 
@@ -41,7 +42,7 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        if(isBlockDragging == false)
+        if(isBlockDragging == false && isStageClear == false)
         {
             if (Input.GetMouseButton(0))
             {

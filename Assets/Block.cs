@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -11,19 +11,18 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
         x = 0, y, z,
     }
     public Direction dir__;
-    private Vector3 dirVec;
 
+    public LayerMask RayLayer; // ë¸”ë¡ì„ ë§‰ì•„ì¤„ ì˜¤ë¸Œì íŠ¸ë“¤
+
+    private Vector3 dirVec;
     public float dragSpeed = 2f;
 
-    private float spaceSize;
-    private int blockSize;
-    float limit;
-
     bool isDragging = false;
+    bool isDone = false;
 
     private GameObject rayPoint_max;
     private GameObject rayPoint_min;
-
+    
 
     private void Start()
     {
@@ -33,25 +32,34 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
             dir__ == Direction.z ? Vector3.forward : Vector3.zero;
         //dirVec = transform.InverseTransformDirection(dirVec);
 
-        blockSize = Mathf.RoundToInt(Vector3.Dot(dirVec, transform.localScale));
-
-        // ºí·° ³¡ºÎºÐ¿¡ ·¹ÀÌÄ³½ºÆ® Æ÷ÀÎÆ®
+        // ë¸”ëŸ­ ëë¶€ë¶„ì— ë ˆì´ìºìŠ¤íŠ¸ í¬ì¸íŠ¸
         var rayPoint = new GameObject("rayPoint_max");
         rayPoint.transform.SetParent(this.transform);
-        rayPoint.transform.localPosition = dirVec /2; // ºí·°ÀÇ ¸Ç À­ºÎºÐ. (blockSize / 2f) / (float)blockSize ÀÌ°Å Á¤¸®ÇÏ¸é Ç×»ó 1/2 ÀÌ´Ù
+        rayPoint.transform.localPosition = dirVec /2; // ë¸”ëŸ­ì˜ ë§¨ ìœ—ë¶€ë¶„. (blockSize / 2f) / (float)blockSize ì´ê±° ì •ë¦¬í•˜ë©´ í•­ìƒ 1/2 ì´ë‹¤
         rayPoint_max = rayPoint;
 
         rayPoint = new GameObject("rayPoint_min");
         rayPoint.transform.SetParent(this.transform);
         rayPoint.transform.localPosition = -dirVec / 2;
         rayPoint_min = rayPoint;
+    }
 
-
+    public void ReachExitMove(Vector3 dir)
+    {
+        GameManager.I.isStageClear = true;
+        isDone = true;
+        isDragging = false;
+        Sequence seq = DOTween.Sequence()
+        .Append(transform.DOMove(transform.position + dir.normalized * 5f, 1.5f))
+        .OnComplete(() =>
+        {
+            Debug.Log("í´ë¦¬ì–´ = ");
+        });
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        Debug.Log("OnBeginDrag = ");
+        if (isDone) return;
         isDragging = true;
 
         GameManager.I.isBlockDragging = true;
@@ -71,8 +79,6 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
                 isShaking = false;
             });
     }
-
-
     Vector3 GetLocalDir()
     {
         return
@@ -81,9 +87,10 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
             dir__ == Direction.z ? transform.forward : Vector3.zero;
     }
 
-
     public void OnDrag(PointerEventData eventData)
     {
+        if (isDragging == false) return;
+
         var delta =
             dir__ == Direction.x ? -eventData.delta.x :
             dir__ == Direction.y ? eventData.delta.y :
@@ -93,10 +100,10 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
         var localDir = GetLocalDir();
 
         var d = dirVec * delta * dragSpeed * Time.deltaTime;
-        var dir = d.normalized; // ¾Æ·¡¿¡¼­ ³Ê¹« ÀÛ¾ÆÁö±â Àü¿¡ ÀúÀå(-0.05f ºÎºÐ)
+        var dir = d.normalized; // ì•„ëž˜ì—ì„œ ë„ˆë¬´ ìž‘ì•„ì§€ê¸° ì „ì— ì €ìž¥(-0.05f ë¶€ë¶„)
         if (delta > 0)
         {
-            if (Physics.Raycast(rayPoint_max.transform.position, localDir, out RaycastHit hit, 4f))
+            if (Physics.Raycast(rayPoint_max.transform.position, localDir, out RaycastHit hit, 4f, RayLayer))
             {
                 var amount = Vector3.Dot(d, dirVec);
                 var amount_min = Mathf.Min(amount, hit.distance - 0.1f);
@@ -112,7 +119,7 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
         }
         else if (delta < 0)
         {
-            if (Physics.Raycast(rayPoint_min.transform.position, -localDir, out RaycastHit hit, 4f))
+            if (Physics.Raycast(rayPoint_min.transform.position, -localDir, out RaycastHit hit, 4f, RayLayer))
             {
                 var amount = Vector3.Dot(d, dirVec);
                 var amount_min = Mathf.Min(Mathf.Abs(amount), hit.distance - 0.1f);
@@ -133,22 +140,10 @@ public class Block : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHan
         transform.localPosition = newPos;
     }
 
-    private void OnDrawGizmos()
-    {
-        if (rayPoint_max)
-        {
-            var localDir = GetLocalDir();
-            Gizmos.DrawRay(new Ray(rayPoint_max.transform.position, localDir));
-        }
-
-    }
-
-
     public void OnEndDrag(PointerEventData eventData)
     {
         isDragging = false;
         GameManager.I.isBlockDragging = false;
-
     }
 
 }
